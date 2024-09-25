@@ -1,0 +1,631 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Running Progress Tracker</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 100%;
+            margin: 0 auto;
+            padding: 20px;
+            box-sizing: border-box;
+        }
+        h1, h2, h3 {
+            text-align: center;
+        }
+        form {
+            display: flex;
+            flex-direction: column;
+            max-width: 300px;
+            margin: 0 auto;
+        }
+        input, button, select {
+            margin: 5px 0;
+            padding: 10px;
+            font-size: 16px;
+        }
+        button {
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 20px;
+        }
+        th, td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: left;
+        }
+        th {
+            background-color: #f2f2f2;
+        }
+        .chart-container {
+            margin-top: 20px;
+            position: relative;
+            height: 300px;
+            width: 100%;
+        }
+        .action-buttons {
+            white-space: nowrap;
+        }
+        .progress-bar {
+            width: 100%;
+            background-color: #e0e0e0;
+            padding: 3px;
+            border-radius: 3px;
+            box-shadow: inset 0 1px 3px rgba(0, 0, 0, .2);
+            margin-bottom: 10px;
+        }
+        .progress-bar-fill {
+            display: block;
+            height: 22px;
+            background-color: #659cef;
+            border-radius: 3px;
+            transition: width 500ms ease-in-out;
+        }
+        .dark-mode-toggle {
+            position: fixed;
+            top: 10px;
+            right: 10px;
+        }
+        body.dark-mode {
+            background-color: #333;
+            color: #fff;
+        }
+        body.dark-mode table,
+        body.dark-mode th,
+        body.dark-mode td {
+            border-color: #555;
+        }
+        body.dark-mode th {
+            background-color: #444;
+        }
+        body.dark-mode input,
+        body.dark-mode button,
+        body.dark-mode select {
+            background-color: #555;
+            color: #fff;
+            border: 1px solid #777;
+        }
+        body.dark-mode button:hover {
+            background-color: #666;
+        }
+        @media screen and (max-width: 600px) {
+            table, thead, tbody, th, td, tr {
+                display: block;
+            }
+            thead tr {
+                position: absolute;
+                top: -9999px;
+                left: -9999px;
+            }
+            tr {
+                margin-bottom: 15px;
+            }
+            td {
+                border: none;
+                position: relative;
+                padding-left: 50%;
+            }
+            td:before {
+                position: absolute;
+                top: 6px;
+                left: 6px;
+                width: 45%;
+                padding-right: 10px;
+                white-space: nowrap;
+                content: attr(data-label);
+                font-weight: bold;
+            }
+            .action-buttons {
+                text-align: center;
+            }
+            .action-buttons button {
+                width: 100%;
+                margin-bottom: 5px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <button class="dark-mode-toggle" onclick="toggleDarkMode()">Toggle Dark Mode</button>
+    <h1>Running Progress Tracker</h1>
+    
+    <h2>Set Goals</h2>
+    <form id="goalForm">
+        <input type="number" id="weeklyDistanceGoal" placeholder="Weekly Distance Goal (km)" step="0.1" required>
+        <input type="number" id="longRunGoal" placeholder="Long Run Goal (km)" step="0.1" required>
+        <button type="submit">Set Goals</button>
+    </form>
+
+    <h2>Current Goals</h2>
+    <p style="text-align: center;">Weekly Distance Goal: <span id="currentWeeklyGoal">Not set</span> km</p>
+    <p style="text-align: center;">Long Run Goal: <span id="currentLongRunGoal">Not set</span> km</p>
+
+    <h2>Add Week's Data</h2>
+    <form id="dataForm">
+        <input type="number" id="week" placeholder="Week number" required>
+        <input type="date" id="date" required>
+        <input type="number" id="totalDistance" placeholder="Total distance (km)" step="0.1" required>
+        <input type="number" id="longRun" placeholder="Long run distance (km)" step="0.1" required>
+        <input type="text" id="speedWorkout" placeholder="Speed workout details">
+        <input type="text" id="crossTraining" placeholder="Cross-training details">
+        <select id="shoeSelect">
+            <!-- Will be populated dynamically -->
+        </select>
+        <button type="submit">Add Data</button>
+    </form>
+
+    <p id="weatherInfo"></p>
+
+    <h2>Progress</h2>
+    <div style="overflow-x: auto;">
+        <table id="progressTable">
+            <thead>
+                <tr>
+                    <th>Week</th>
+                    <th>Date</th>
+                    <th>Total Distance (km)</th>
+                    <th>Long Run (km)</th>
+                    <th>Speed Workout</th>
+                    <th>Cross-training</th>
+                    <th>Shoe</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody></tbody>
+        </table>
+    </div>
+
+    <h2>Goal Progress</h2>
+    <h3>Weekly Distance Goal Progress</h3>
+    <div class="progress-bar">
+        <span class="progress-bar-fill" id="weeklyDistanceProgress" style="width: 0%;"></span>
+    </div>
+    <p style="text-align: center;">Progress: <span id="weeklyDistanceProgressText">0%</span></p>
+
+    <h3>Long Run Goal Progress</h3>
+    <div class="progress-bar">
+        <span class="progress-bar-fill" id="longRunProgress" style="width: 0%;"></span>
+    </div>
+    <p style="text-align: center;">Progress: <span id="longRunProgressText">0%</span></p>
+
+    <div id="statsDisplay"></div>
+    <div id="predictions"></div>
+
+    <h2>Shoe Tracking</h2>
+    <button onclick="addNewShoe()">Add New Shoe</button>
+    <ul id="shoeList"></ul>
+
+    <div class="chart-container">
+        <canvas id="totalDistanceChart"></canvas>
+    </div>
+    <div class="chart-container">
+        <canvas id="longRunChart"></canvas>
+    </div>
+
+    <h2>Data Management</h2>
+    <button onclick="exportData()">Export Data</button>
+    <input type="file" id="importData" style="display: none;" onchange="importData(event)">
+    <button onclick="document.getElementById('importData').click()">Import Data</button>
+    <button onclick="shareProgress()">Share My Progress</button>
+
+    <script>
+        // All JavaScript code goes here
+        // Include all the JavaScript functions we've discussed
+        let runningData = JSON.parse(localStorage.getItem('runningData')) || [];
+        let editingIndex = -1;
+        let goals = JSON.parse(localStorage.getItem('runningGoals')) || {weeklyDistance: 0, longRun: 0};
+        let shoes = JSON.parse(localStorage.getItem('runningShoes')) || [];
+
+        function saveShoes() {
+            localStorage.setItem('runningShoes', JSON.stringify(shoes));
+        }
+
+        function saveData() {
+            localStorage.setItem('runningData', JSON.stringify(runningData));
+        }
+
+        function saveGoals() {
+            localStorage.setItem('runningGoals', JSON.stringify(goals));
+        }
+
+        function sortData() {
+            runningData.sort((a, b) => parseInt(a.week) - parseInt(b.week));
+        }
+
+        function setGoals(event) {
+            event.preventDefault();
+            goals.weeklyDistance = parseFloat(document.getElementById('weeklyDistanceGoal').value);
+            goals.longRun = parseFloat(document.getElementById('longRunGoal').value);
+            saveGoals();
+            updateGoalsDisplay();
+            updateProgressBars();
+        }
+
+        function updateGoalsDisplay() {
+            document.getElementById('currentWeeklyGoal').textContent = goals.weeklyDistance;
+            document.getElementById('currentLongRunGoal').textContent = goals.longRun;
+        }
+
+        function addWeekData(event) {
+            event.preventDefault();
+            const newData = {
+                week: document.getElementById('week').value,
+                date: document.getElementById('date').value,
+                totalDistance: parseFloat(document.getElementById('totalDistance').value),
+                longRun: parseFloat(document.getElementById('longRun').value),
+                speedWorkout: document.getElementById('speedWorkout').value,
+                crossTraining: document.getElementById('crossTraining').value
+                shoeIndex: document.getElementById('shoeSelect').value
+            };
+
+            if (editingIndex === -1) {
+                runningData.push(newData);
+            } else {
+                runningData[editingIndex] = newData;
+                editingIndex = -1;
+                document.querySelector('#dataForm button[type="submit"]').textContent = 'Add Data';
+            }
+
+            updateShoeMileage(newData.shoeIndex, newData.totalDistance);
+
+            sortData();
+            saveData();
+            updateTable();
+            updateCharts();
+            updateProgressBars();
+            event.target.reset();
+        }
+
+        function updateTable() {
+            const tableBody = document.querySelector('#progressTable tbody');
+            tableBody.innerHTML = '';
+            runningData.forEach((data, index) => {
+                const row = tableBody.insertRow();
+                Object.entries(data).forEach(([key, value]) => {
+                    const cell = row.insertCell();
+                    cell.setAttribute('data-label', key.charAt(0).toUpperCase() + key.slice(1));
+                    cell.textContent = value;
+                });
+                const actionCell = row.insertCell();
+                actionCell.className = 'action-buttons';
+                actionCell.setAttribute('data-label', 'Actions');
+                actionCell.innerHTML = `
+                    <button onclick="editEntry(${index})">Edit</button>
+                    <button onclick="deleteEntry(${index})">Delete</button>
+                `;
+            });
+        }
+
+        function editEntry(index) {
+            const data = runningData[index];
+            document.getElementById('week').value = data.week;
+            document.getElementById('date').value = data.date;
+            document.getElementById('totalDistance').value = data.totalDistance;
+            document.getElementById('longRun').value = data.longRun;
+            document.getElementById('speedWorkout').value = data.speedWorkout;
+            document.getElementById('crossTraining').value = data.crossTraining;
+            editingIndex = index;
+            document.querySelector('#dataForm button[type="submit"]').textContent = 'Update Data';
+        }
+
+        function deleteEntry(index) {
+            if (confirm('Are you sure you want to delete this entry?')) {
+                runningData.splice(index, 1);
+                saveData();
+                updateTable();
+                updateCharts();
+                updateProgressBars();
+            }
+        }
+
+        function updateProgressBars() {
+            if (runningData.length > 0) {
+                const latestEntry = runningData[runningData.length - 1];
+                const weeklyDistanceProgress = (latestEntry.totalDistance / goals.weeklyDistance) * 100;
+                const longRunProgress = (latestEntry.longRun / goals.longRun) * 100;
+
+                document.getElementById('weeklyDistanceProgress').style.width = `${Math.min(weeklyDistanceProgress, 100)}%`;
+                document.getElementById('weeklyDistanceProgressText').textContent = `${weeklyDistanceProgress.toFixed(1)}%`;
+
+                document.getElementById('longRunProgress').style.width = `${Math.min(longRunProgress, 100)}%`;
+                document.getElementById('longRunProgressText').textContent = `${longRunProgress.toFixed(1)}%`;
+            }
+        }
+
+        function updateCharts() {
+            updateTotalDistanceChart();
+            updateLongRunChart();
+        }
+
+        function updateTotalDistanceChart() {
+            const ctx = document.getElementById('totalDistanceChart').getContext('2d');
+            new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: runningData.map(data => `Week ${data.week}`),
+                    datasets: [{
+                        label: 'Total Distance (km)',
+                        data: runningData.map(data => data.totalDistance),
+                        borderColor: 'rgb(75, 192, 192)',
+                        tension: 0.1
+                    }, {
+                        label: 'Weekly Distance Goal',
+                        data: runningData.map(() => goals.weeklyDistance),
+                        borderColor: 'rgb(255, 99, 132)',
+                        borderDash: [5, 5],
+                        fill: false
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    scales: {
+                        y: {
+                            beginAtZero: true
+                        }
+                    }
+                }
+            });
+        }
+
+        function updateLongRunChart() {
+            const ctx = document.getElementById('longRunChart').getContext('2d');
+            new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: runningData.map(data => `Week ${data.week}`),
+                    datasets: [{
+                        label: 'Long Run Distance (km)',
+                        data: runningData.map(data => data.longRun),
+                        borderColor: 'rgb(75, 192, 192)',
+                        tension: 0.1
+                    }, {
+                        label: 'Long Run Goal',
+                        data: runningData.map(() => goals.longRun),
+                        borderColor: 'rgb(255, 99, 132)',
+                        borderDash: [5, 5],
+                        fill: false
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    scales: {
+                        y: {
+                            beginAtZero: true
+                        }
+                    }
+                }
+            });
+        }
+
+        function exportData() {
+            const dataStr = JSON.stringify(runningData);
+            const dataUri = 'data:application/json;charset=utf-8,'+ encodeURIComponent(dataStr);
+            const exportFileDefaultName = 'running_data.json';
+
+            const linkElement = document.createElement('a');
+            linkElement.setAttribute('href', dataUri);
+            linkElement.setAttribute('download', exportFileDefaultName);
+            linkElement.click();
+        }
+
+        function importData(event) {
+            const file = event.target.files[0];
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                const importedData = JSON.parse(e.target.result);
+                runningData = importedData;
+                saveData();
+                updateTable();
+                updateCharts();
+                updateProgressBars();
+            };
+            reader.readAsText(file);
+        }
+
+        function calculateStats() {
+            if (runningData.length === 0) return null;
+
+            const totalDistances = runningData.map(data => data.totalDistance);
+            const longRuns = runningData.map(data => data.longRun);
+
+            const stats = {
+                averageWeeklyDistance: totalDistances.reduce((a, b) => a + b, 0) / totalDistances.length,
+                averageLongRun: longRuns.reduce((a, b) => a + b, 0) / longRuns.length,
+                bestWeeklyDistance: Math.max(...totalDistances),
+                bestLongRun: Math.max(...longRuns),
+                totalDistanceRun: totalDistances.reduce((a, b) => a + b, 0),
+                totalWeeksLogged: runningData.length
+            };
+
+            return stats;
+        }
+
+        function displayStats() {
+            const stats = calculateStats();
+            if (!stats) return;
+
+            const statsHtml = `
+                <h3>Running Statistics</h3>
+                <p>Average Weekly Distance: ${stats.averageWeeklyDistance.toFixed(2)} km</p>
+                <p>Average Long Run: ${stats.averageLongRun.toFixed(2)} km</p>
+                <p>Best Weekly Distance: ${stats.bestWeeklyDistance.toFixed(2)} km</p>
+                <p>Best Long Run: ${stats.bestLongRun.toFixed(2)} km</p>
+                <p>Total Distance Run: ${stats.totalDistanceRun.toFixed(2)} km</p>
+                <p>Total Weeks Logged: ${stats.totalWeeksLogged}</p>
+            `;
+
+            document.getElementById('statsDisplay').innerHTML = statsHtml;
+        }
+
+        function toggleDarkMode() {
+            document.body.classList.toggle('dark-mode');
+            localStorage.setItem('darkMode', document.body.classList.contains('dark-mode'));
+        }
+
+        // Check for saved dark mode preference
+        if (localStorage.getItem('darkMode') === 'true') {
+            document.body.classList.add('dark-mode');
+        }
+
+        async function getWeather(date, lat, lon) {
+            const API_KEY = '43b8b5a9ff687c000eb6bc939aab982f';
+            const url = `https://api.openweathermap.org/data/2.5/weather?lat=${lat}&lon=${lon}&dt=${date}&appid=${API_KEY}&units=metric`;
+            
+            try {
+                const response = await fetch(url);
+                const data = await response.json();
+                return {
+                    temperature: data.main.temp,
+                    description: data.weather[0].description,
+                    humidity: data.main.humidity
+                };
+            } catch (error) {
+                console.error('Error fetching weather:', error);
+                return null;
+            }
+        }
+
+        function shareProgress() {
+            if (navigator.share) {
+                navigator.share({
+                    title: 'My Running Progress',
+                    text: `I've run ${calculateStats().totalDistanceRun.toFixed(2)} km in total!`,
+                    url: window.location.href
+                }).then(() => console.log('Successful share'))
+                .catch((error) => console.log('Error sharing:', error));
+            } else {
+                alert('Web Share not supported on this browser');
+            }
+        }
+
+        function predictRaceTime(distance) {
+            const recentRuns = runningData.slice(-5); // Consider last 5 runs
+            const avgPace = recentRuns.reduce((sum, run) => sum + (run.totalDistance / run.duration), 0) / recentRuns.length;
+            
+            const predictedTime = distance / avgPace;
+            const hours = Math.floor(predictedTime);
+            const minutes = Math.floor((predictedTime - hours) * 60);
+            const seconds = Math.round(((predictedTime - hours) * 60 - minutes) * 60);
+            
+            return `${hours}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+        }
+
+        function displayPredictions() {
+            const predictions = `
+                <h3>Race Predictions</h3>
+                <p>5K: ${predictRaceTime(5)}</p>
+                <p>10K: ${predictRaceTime(10)}</p>
+                <p>Half Marathon: ${predictRaceTime(21.1)}</p>
+                <p>Marathon: ${predictRaceTime(42.2)}</p>
+            `;
+            document.getElementById('predictions').innerHTML = predictions;
+        }
+
+        function addShoe(name, dateAdded) {
+            shoes.push({ name, dateAdded, mileage: 0 });
+            saveShoes();
+            updateShoeList();
+        }
+
+        function updateShoeMileage(shoeIndex, distance) {
+            shoes[shoeIndex].mileage += distance;
+            saveShoes();
+            updateShoeList();
+        }
+
+        function updateShoeList() {
+            const shoeList = document.getElementById('shoeList');
+            shoeList.innerHTML = '';
+            shoes.forEach((shoe, index) => {
+                const li = document.createElement('li');
+                li.textContent = `${shoe.name}: ${shoe.mileage.toFixed(2)} km`;
+                if (shoe.mileage > 500) {
+                    li.style.color = 'red';
+                    li.textContent += ' (Consider replacing)';
+                }
+                shoeList.appendChild(li);
+            });
+        }
+
+        function addNewShoe() {
+            const name = prompt('Enter shoe name:');
+            const dateAdded = new Date().toISOString().split('T')[0];
+            addShoe(name, dateAdded);
+        }
+
+        // Populate shoe select
+        function updateShoeSelect() {
+            const select = document.getElementById('shoeSelect');
+            select.innerHTML = '';
+            shoes.forEach((shoe, index) => {
+                const option = document.createElement('option');
+                option.value = index;
+                option.textContent = shoe.name;
+                select.appendChild(option);
+            });
+        }
+
+        updateShoeSelect();
+        updateShoeList();
+
+
+        document.getElementById('goalForm').addEventListener('submit', setGoals);
+        document.getElementById('dataForm').addEventListener('submit', addWeekData);
+
+        // Usage example
+        document.getElementById('date').addEventListener('change', async function() {
+            const date = new Date(this.value);
+            const unixTimestamp = Math.floor(date.getTime() / 1000);
+            const weather = await getWeather(unixTimestamp, "39.774750", "2.965840");
+            if (weather) {
+                document.getElementById('weatherInfo').textContent = 
+                    `Temperature: ${weather.temperature}°C, ${weather.description}, Humidity: ${weather.humidity}%`;
+            }
+        });
+
+        sortData();
+        updateGoalsDisplay();
+        updateTable();
+        updateCharts();
+        updateProgressBars();
+        displayStats();
+        displayPredictions();
+
+        
+        // Remember to initialize and update everything when the page loads
+        document.addEventListener('DOMContentLoaded', function() {
+            // Initialize dark mode
+            if (localStorage.getItem('darkMode') === 'true') {
+                document.body.classList.add('dark-mode');
+            }
+
+            // Load and display data
+            loadData();
+            updateTable();
+            updateCharts();
+            updateProgressBars();
+            displayStats();
+            displayPredictions();
+            updateShoeSelect();
+            updateShoeList();
+
+            // Set up event listeners
+            document.getElementById('goalForm').addEventListener('submit', setGoals);
+            document.getElementById('dataForm').addEventListener('submit', addWeekData);
+            document.getElementById('date').addEventListener('change', fetchWeather);
+        });
+    </script>
+</body>
+</html>

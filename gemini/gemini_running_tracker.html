@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Half Marathon Training Tracker</title>
+    <style>
+        /* ... (table styling from previous response) */
+    </style>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script> </head>
+<body>
+    <h1>Half Marathon Training Progress</h1>
+
+    <h2>Training Plan</h2>
+    <button onclick="addRow()">Add Row</button>
+    <table id="trainingPlanTable" border="1">
+        <tr>
+            <th>Week</th>
+            <th>Monday</th>
+            <th>Tuesday</th>
+            <th>Wednesday</th>
+            <th>Thursday</th>
+            <th>Friday</th>
+            <th>Saturday</th>
+            <th>Sunday</th>
+        </tr>
+    </table>
+
+    <script>
+        // ... (JavaScript code for adding, editing, deleting rows) 
+    </script>
+
+    <h2>Progress Monitoring</h2>
+    <div>
+        <canvas id="mileageChart"></canvas> </div>
+    <script>
+        // Sample data for demonstration (you'll need to populate this from your table)
+        var weeklyMileage = [5, 12, 18, 22, 15, 20, 10]; 
+
+        var ctx = document.getElementById('mileageChart').getContext('2d');
+        var myChart = new Chart(ctx, {
+            type: 'line',
+            data: {
+                labels: ['Week 1', 'Week 2', 'Week 3', 'Week 4', 'Week 5', 'Week 6', 'Week 7'],
+                datasets: [{
+                    label: 'Weekly Mileage',
+                    data: weeklyMileage,
+                    borderColor: 'rgba(75, 192, 192, 1)',
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                scales: {
+                    y: {
+                        beginAtZero: true
+                    }
+                }
+            }
+        });
+    </script>
+
+    <h2>Run Tracking</h2> 
+</body>
+</html>
